@@ -58,11 +58,16 @@ fn main() -> io::Result<()> {
     for (i, ele) in shape_vec.iter().enumerate() {
         println!("{} {:?}", i, ele);
     }
-    let mut s = Vec::from([1, 2, 3]);
-    while let Some(a) = s.pop() {
-        println!("{:?}", a);   
+    let mut words: Vec<String> = Vec::new();
+    for x in 0..5 {
+        for y in 0..5 {
+            if let Some(word_v) = traverse_dfs(&shape_vec, &words_vec, (x, y)) {
+                println!("{:?}", &word_v);
+                words.extend_from_slice(&word_v);
+            }
+        }
     }
-    println!("done");
+    println!("{:?}", words);
     // let mut full_words: Vec<Vec<String>> = Vec::new();
     // for x in 0..shape_vec.len() {
     //     for y in 0..shape_vec[x].len() {
@@ -73,12 +78,13 @@ fn main() -> io::Result<()> {
     //     } 
     // }
     // println!("{:?}", full_words);
- 
-    let result = traverse_bfs(&shape_vec, &words_vec, (0,0));
-    println!("{:?}", result);
+    // println!("{:?}", traverse(&shape_vec, &words_vec, (0, 0), &mut "".to_string())); 
+    // let result = traverse_bfs(&shape_vec, &words_vec, (0,0));
+    // println!("{:?}", result);
     // println!("{:?}", get_starting_matches(&"ip".to_string(), &words_vec));
     // println!("{:?}", &get_starting_matches(&"ip".to_string(), &words_vec));
     // let words = traverse(&shape_vec, &words_vec, (0, 3), &mut "".to_string());
+
 /*     const INDEX: (isize, isize) = (2, 2);
     let neighbours = get_neighbours(&shape_vec, INDEX);
     let s_neighbours = neighbours
@@ -94,7 +100,43 @@ fn main() -> io::Result<()> {
  */
     Ok(())
 }
+fn traverse_dfs(shape_vec: &[Vec<String>], words_vec: &[String], index: (usize, usize)) -> Option<Vec<String>> {
+    // let mut valid_words: Vec<String> = Vec::new();
 
+    let valid_words = dfs(shape_vec, words_vec, index, "".to_string(), &mut HashSet::with_capacity(25)); 
+
+    if !valid_words.is_empty() {
+        Some(valid_words)
+    } else {
+        None
+    }
+}
+
+fn dfs(shape_vec: &[Vec<String>], words_vec: &[String], index: (usize, usize), mut word: String, visited: &mut HashSet<(usize, usize)>) -> Vec<String> {
+    let node = &shape_vec[index.0][index.1];
+    let mut valid_words: Vec<String> = Vec::with_capacity(8);
+
+    for neighbour in get_neighbours(shape_vec, (index.0 as isize, index.1 as isize)) {
+        if visited.contains(&neighbour) { continue; } 
+        visited.insert(neighbour);
+        let neighbour_letter = &shape_vec[neighbour.0][neighbour.1];
+        println!("{:?}->{:?}", node, neighbour_letter);
+        let potential_word = format!("{word}{neighbour_letter}");
+        if is_potential_word(&potential_word, words_vec) {
+            word = potential_word.clone();
+            // if it is an actual word, add it and move forward further
+            if words_vec.binary_search(&word).is_ok() {
+                valid_words.push(word.clone());
+            }
+            valid_words.extend_from_slice(&dfs(shape_vec, words_vec, neighbour, word.clone(), &mut visited.clone()));
+        } else {
+            // explore other options
+            continue;
+        }
+    }
+    
+    valid_words
+}
 
 fn traverse_bfs(shape_vec: &[Vec<String>], words_vec: &[String], index: (usize, usize)) -> Option<Vec<String>> {
     let mut valid_words: Vec<String> = Vec::with_capacity(8);
@@ -123,16 +165,20 @@ fn traverse_bfs(shape_vec: &[Vec<String>], words_vec: &[String], index: (usize, 
             if visited_vals.contains(neighbour) { println!("previsited {:?}->{:?}", node, neighbour); continue; }
             visited.entry(node).or_insert(Vec::from([*neighbour])).push(*neighbour);
             println!("{:?}", visited);
+
             let neighbour_letter = &shape_vec[neighbour.0][neighbour.1];
-            // println!("{:?}->{:?}", &shape_vec[node.0][node.1], &shape_vec[neighbour.0][neighbour.1]);
+            println!("{:?}->{:?}", &shape_vec[node.0][node.1], &shape_vec[neighbour.0][neighbour.1]);
             let mut new_combined = format!("{word}{neighbour_letter}");
 
             // println!("{word}->{combined}");
+            // if this current combination is a potenially valid word, then
+            // set the word to be the current combination, and add this neighbour to the queue to
+            // explore further.
             if is_potential_word(&new_combined, words_vec) {
                 let potential_matches = &get_starting_matches(&new_combined, words_vec);
                 println!("{new_combined}->?{:?}", potential_matches.get(0..3).unwrap_or(potential_matches));
                 word = new_combined.clone();
-                // queue.push_front(*neighbour);
+                queue.push_front(*neighbour);
                 println!("{:?}", queue);
             } else {
                 if words_vec.binary_search(&word).is_err() {
