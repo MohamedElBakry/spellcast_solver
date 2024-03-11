@@ -2,8 +2,8 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
+use rayon::prelude::*;
 
-// #[allow(dead_code)]
 enum Direction {
     N,
     NE,
@@ -29,7 +29,7 @@ const fn direction_to_relative_index(direction: &Direction) -> (isize, isize) {
 }
 
 // TODO:
-// 0. Fuzzy string search
+// 0. Fuzzy string search ✅
 // 1. Sort by points
 //  a. Evaluate function
 // 2. Combine multiple word files into one
@@ -38,22 +38,28 @@ const fn direction_to_relative_index(direction: &Direction) -> (isize, isize) {
 // that haven't already been used)
 // 3. OCR
 // 4. Support letter modifiers: DL, TL/ Double Word, Gems for sorting
+// 5. Show top 5 words pathed on shape
 fn main() -> io::Result<()> {
     // Read file shape.txt
     // Traverse and Match to words.txt
-    // let dictionary_string =
-    //     fs::read_to_string("assets/collins.txt").expect("The words list should readable x(");
-    // let dictionary_vec: Vec<&str> = dictionary_string.split('\n').collect();
-    const DS: &str = include_str!("../assets/collins.txt");
-    let dictionary_vec: Vec<&str> = DS.split('\n').collect();
+    let dictionary_string =
+    std::fs::read_to_string("assets/collins.txt").expect("The words list should readable x(");
+    let dictionary_vec: Vec<&str> = dictionary_string.split('\n').collect();
+    // const DS: &str = include_str!("../assets/collins.txt");
+    // let dictionary_vec: Vec<&str> = DS.split('\n').collect();
 
     let shape =
-        File::open("assets/shape_temp.txt").expect("The 'shape' file should be openable/readable x(");
+        File::open("assets/shape.txt").expect("The 'shape' file should be openable/readable x(");
 
     let reader = io::BufReader::new(shape);
     let shape_vec: Vec<Vec<String>> = reader
         .lines()
-        .map(|line| line.unwrap().split(' ').map(|word| word.to_string()).collect())
+        .map(|line| {
+            line.unwrap()
+                .split(' ')
+                .map(|word| word.to_string())
+                .collect()
+        })
         .collect();
 
     for (i, ele) in shape_vec.iter().enumerate() {
@@ -62,15 +68,18 @@ fn main() -> io::Result<()> {
 
     let mut words: HashSet<String> = HashSet::new();
     let mut swaps: HashSet<String> = HashSet::new();
-    for x in 0..5 {
-        for y in 0..5 {
-            if let Some((word_v, swaps_v)) = traverse_dfs(&shape_vec, &dictionary_vec, (x, y), 1) {
-                words.extend(word_v);
-                swaps.extend(swaps_v);
-            }
-        }
-    }
+    let result: Vec<_> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
 
+    let r = result
+        .par_iter()
+        .map(|(x, y)| traverse_dfs(&shape_vec, &dictionary_vec, (*x, *y), 1))
+        .collect::<Vec<_>>();
+
+    for option in r.into_iter().flatten() {
+        let (word_v, swap_v) = option;
+        words.extend(word_v);
+        swaps.extend(swap_v);
+    }
     println!("{:?}", (words.len(), swaps.len()));
     let mut ordered = Vec::from_iter(&words);
 
@@ -91,14 +100,18 @@ fn main() -> io::Result<()> {
     ordered_swaps.sort_by_key(|k| k.len());
     println!(
         "words with swaps: {:?}",
-        (&ordered_swaps, ordered_swaps.len(), ordered_swaps.capacity())
+        (
+            &ordered_swaps,
+            ordered_swaps.len(),
+            ordered_swaps.capacity()
+        )
     );
 
     Ok(())
 }
 
 fn traverse_dfs(
-    shape_vec: &[Vec<String>], words_vec: &[&str], index: (usize, usize), max_swaps: u8,
+    shape_vec: &[Vec<String>], words_vec: &[& str], index: (usize, usize), max_swaps: u8,
 ) -> Option<(Vec<String>, Vec<String>)> {
     // let mut valid_words: Vec<String> = Vec::new();
     let mut visited = HashSet::with_capacity(9); // avg 8.68
@@ -121,7 +134,7 @@ fn traverse_dfs(
 }
 
 fn dfs(
-    shape_vec: &[Vec<String>], words_vec: &[&str], index: (usize, usize), mut word: String,
+    shape_vec: &[Vec<String>], words_vec: &[& str], index: (usize, usize), mut word: String,
     visited: &mut HashSet<(usize, usize)>, max_swaps: u8,
 ) -> (Vec<String>, Vec<String>) {
     let mut valid_words: Vec<String> = Vec::new();
@@ -141,11 +154,13 @@ fn dfs(
         // Consider whether words are being missed by only getting starting matches, and the
         // neighbour check len > n check.
         let potential_matches = get_starting_matches(&prefix, words_vec);
-        let is_valid_with_swaps = potential_matches
-            .iter()
-            .any(|&w| find_distance_betwixt(w, &prefix) <= max_swaps);
+        let valid_swaps: Vec<String> = potential_matches
+            .par_iter()
+            .filter(|&w| find_distance_betwixt(w, &prefix) <= max_swaps)
+            .map(|w| w.to_string())
+            .collect();
         // print!("\n{:?}->{:?}={:?}", word, neighbour_letter, prefix);
-        if is_valid_prefix(&prefix, words_vec) || is_valid_with_swaps {
+        if is_valid_prefix(&prefix, words_vec) || !valid_swaps.is_empty() {
             // print!("✅");
             word = prefix.clone();
 
@@ -155,20 +170,20 @@ fn dfs(
             }
 
             // neighbours.len() >= max_swaps?
-            if is_valid_with_swaps {
-                words_with_letter_swaps.extend(
-                    potential_matches
-                        .iter()
-                        .filter(|&w| find_distance_betwixt(w, &prefix) <= max_swaps)
-                        .map(|w| w.to_string())
-                        .collect::<Vec<String>>(),
-                );
+            if !valid_swaps.is_empty() {
+                words_with_letter_swaps.extend(valid_swaps);
             }
 
             visited.insert(*neighbour);
 
-            let (valid_words_cache, words_with_swaps_cache) =
-                &dfs(shape_vec, words_vec, *neighbour, word.clone(), visited, max_swaps);
+            let (valid_words_cache, words_with_swaps_cache) = &dfs(
+                shape_vec,
+                words_vec,
+                *neighbour,
+                word.clone(),
+                visited,
+                max_swaps,
+            );
             valid_words.extend_from_slice(valid_words_cache);
             words_with_letter_swaps.extend_from_slice(words_with_swaps_cache);
 
@@ -237,7 +252,10 @@ fn find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
             } else if word_a[y - 1..=y - 1] == word_b[x - 1..=x - 1] {
                 matrix[y][x] = matrix[y - 1][x - 1];
             } else {
-                matrix[y][x] = 1 + min(min(matrix[y - 1][x], matrix[y][x - 1]), matrix[y - 1][x - 1])
+                matrix[y][x] = 1 + min(
+                    min(matrix[y - 1][x], matrix[y][x - 1]),
+                    matrix[y - 1][x - 1],
+                )
             }
         }
     }
