@@ -1,8 +1,8 @@
+use rayon::prelude::*;
 use std::cmp::min;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
-use rayon::prelude::*;
 
 enum Direction {
     N,
@@ -43,7 +43,7 @@ fn main() -> io::Result<()> {
     // Read file shape.txt
     // Traverse and Match to words.txt
     let dictionary_string =
-    std::fs::read_to_string("assets/collins.txt").expect("The words list should readable x(");
+        std::fs::read_to_string("assets/collins.txt").expect("The words list should readable x(");
     let dictionary_vec: Vec<&str> = dictionary_string.split('\n').collect();
     // const DS: &str = include_str!("../assets/collins.txt");
     // let dictionary_vec: Vec<&str> = DS.split('\n').collect();
@@ -66,52 +66,54 @@ fn main() -> io::Result<()> {
         println!("{} {:?}", i, ele);
     }
 
-    let mut words: HashSet<String> = HashSet::new();
-    let mut swaps: HashSet<String> = HashSet::new();
-    let result: Vec<_> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
 
+    let result: Vec<(usize, usize)> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
     let r = result
         .par_iter()
         .map(|(x, y)| traverse_dfs(&shape_vec, &dictionary_vec, (*x, *y), 1))
-        .collect::<Vec<_>>();
+        .collect::<Vec<Option<(Vec<String>, Vec<String>)>>>();
+
+    let mut words: HashSet<String> = HashSet::new();
+    let mut swaps: HashSet<String> = HashSet::new();
 
     for option in r.into_iter().flatten() {
         let (word_v, swap_v) = option;
         words.extend(word_v);
         swaps.extend(swap_v);
     }
+
+
     println!("{:?}", (words.len(), swaps.len()));
     let mut ordered = Vec::from_iter(&words);
 
     ordered.retain(|w| w.len() > 4);
     ordered.sort_by_key(|k| k.len());
+    ordered.shrink_to_fit();
+
     println!(
         "words: {:?}",
-        (
-            /*&set,*/ words.len(),
-            words.capacity(),
-            ordered.len(),
-            &ordered
-        )
+        (words.len(), ordered.capacity(), ordered.len(), &ordered)
     );
 
     let mut ordered_swaps = Vec::from_iter(&swaps);
     ordered_swaps.retain(|w| w.len() > 4 && !&ordered.contains(w));
     ordered_swaps.sort_by_key(|k| k.len());
+    ordered_swaps.shrink_to_fit();
     println!(
         "words with swaps: {:?}",
         (
-            &ordered_swaps,
+            &ordered_swaps[ordered_swaps.len() - 5..],
             ordered_swaps.len(),
             ordered_swaps.capacity()
         )
     );
 
+    // dbg!(evaluate(ordered_swaps.last().unwrap()));
     Ok(())
 }
 
 fn traverse_dfs(
-    shape_vec: &[Vec<String>], words_vec: &[& str], index: (usize, usize), max_swaps: u8,
+    shape_vec: &[Vec<String>], words_vec: &[&str], index: (usize, usize), max_swaps: u8,
 ) -> Option<(Vec<String>, Vec<String>)> {
     // let mut valid_words: Vec<String> = Vec::new();
     let mut visited = HashSet::with_capacity(9); // avg 8.68
@@ -134,7 +136,7 @@ fn traverse_dfs(
 }
 
 fn dfs(
-    shape_vec: &[Vec<String>], words_vec: &[& str], index: (usize, usize), mut word: String,
+    shape_vec: &[Vec<String>], words_vec: &[&str], index: (usize, usize), mut word: String,
     visited: &mut HashSet<(usize, usize)>, max_swaps: u8,
 ) -> (Vec<String>, Vec<String>) {
     let mut valid_words: Vec<String> = Vec::new();
@@ -291,4 +293,23 @@ fn get_starting_matches<'a>(search_term: &String, words_vec: &'a [&'a str]) -> V
     }
 
     matches
+}
+
+fn evaluate(word: &str) -> u8 {
+    let mut sum = word.chars()
+        .map(|c| match c {
+            'a' | 'e' | 'i' | 'o' => 1,
+            'n' | 'r' | 's' | 't' => 2,
+            'd' | 'g' | 'l' => 3,
+            'b' | 'h' | 'p' | 'm' | 'u' | 'y' => 4,
+            'c' | 'f' | 'v' | 'w' => 5,
+            'k' => 6,
+            'j' | 'x' => 7,
+            'q' | 'z' => 8,
+            _ => 0,
+        })
+        .sum();
+    sum += if word.len() > 5 { 10 } else { 0 };
+
+    sum
 }
