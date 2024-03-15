@@ -39,13 +39,12 @@ impl Direction {
 // 0. Fuzzy string search ✅
 // 1. Sort by points (partially impemented) ✅
 //  a. Evaluate function
-// 2. Combine multiple word files into one
 // - if it's a valid prefix and the fuzzy matcher returns < 3 diff go
 // - return approximate match if swapping a neighbour is possible (i.e, letter has valid neighbours
 // that haven't already been used)
-// 3. OCR
-// 4. Support letter modifiers: DL, TL/ Double Word, Gems for sorting
-// 5. Show top 5 words pathed on shape.txt
+// 2. OCR
+// 3. Support letter modifiers: DL, TL/ Double Word, Gems for sorting
+// 4. Show top 5 words pathed on shape.txt
 fn main() -> io::Result<()> {
     // Read file shape.txt
     // Traverse and Match to words.txt
@@ -65,7 +64,6 @@ fn main() -> io::Result<()> {
     //         .collect()
     // }).collect::<Vec<Vec<String>>>();
 
-
     let graph = Graph::new(&shape);
     // return Ok(());
     // let reader = io::BufReader::new(shape);
@@ -83,12 +81,13 @@ fn main() -> io::Result<()> {
     //     println!("{} {:?}", i, ele);
     // }
 
-    // for (i, ele) in graph.characters.iter().enumerate() {
-    //     for (j, c) in ele.iter().enumerate() {
-    //         println!("{i}, {j}: {:?}", (c, graph.data[i][j]));
-    //     }
-    //     // println!("{} {:?}", i, (ele, graph.data[i]));
-    // }
+    println!("{:?}", shape);
+    for (i, ele) in graph.characters.iter().enumerate() {
+        for (j, c) in ele.iter().enumerate() {
+            println!("{i}, {j}: {:?}", (c, graph.data[i][j]));
+        }
+        // println!("{} {:?}", i, (ele, graph.data[i]));
+    }
 
     // dbg!(graph);
     let result: Vec<(usize, usize)> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
@@ -127,11 +126,10 @@ fn main() -> io::Result<()> {
     //
     ordered_v.sort_by_key(|k| k.1);
     ordered_v.dedup();
-    println!("{:?}", ordered_v);
+    // println!("{:?}", ordered_v);
     println!("\x1b[32m{:?}!\x1b[0m", ordered_v.last().unwrap());
 
     // dfs_true("", &shape_vec, (0, 0), &mut HashSet::new());
-
 
     // print!("\x1b[2J\x1b[1;1H");
     // let mut ordered_v = Vec::from_iter(&words);
