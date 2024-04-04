@@ -1,12 +1,11 @@
 use rayon::prelude::*;
 use std::cmp::min;
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::{self, BufRead};
+use std::collections::HashSet;
+use std::io::{self};
 
-use crate::shape::Graph;
-
+mod dictionary;
 mod shape;
+use crate::shape::Graph;
 
 enum Direction {
     N,
@@ -49,115 +48,143 @@ fn main() -> io::Result<()> {
     // Read file shape.txt
     // Traverse and Match to words.txt
     let dictionary_string =
-        std::fs::read_to_string("assets/collins.txt").expect("The words list should readable x(");
+        std::fs::read_to_string("assets/words.txt").expect("The words list should readable x(");
+    // const dictionary_string: &str = include_str!("../assets/word.list.txt");
     let dictionary_vec: Vec<&str> = dictionary_string.lines().collect();
     // const DS: &str = include_str!("../assets/collins.txt");
     // let dictionary_vec: Vec<&str> = DS.split('\n').collect();
 
-    // let shape =
-    //     File::open("assets/shape_bonuses.txt").expect("The 'shape' file should be openable/readable x(");
+    let dict = dictionary::Dictionary::new(dictionary_vec);
 
-    let shape = std::fs::read_to_string("assets/shape_bonuses.txt")?;
-    // let shape_vec = shape.lines().map(|line| {
-    //   line.split(' ')
-    //     .map(|w| w.to_string())
-    //         .collect()
-    // }).collect::<Vec<Vec<String>>>();
+    // let mut counts = dict
+    //     .word_buckets
+    //     .iter()
+    //     .map(|(&k, v)| (k, v.len()))
+    //     .collect::<Vec<(u8, usize)>>();
+    // counts.sort();
+    // println!("lengths: {:?}", counts);
 
+    let mut b = dict.word_buckets.keys().collect::<Vec<_>>();
+    b.sort();
+    println!("{b:?}");
+
+    let w = "spaghetti";
+    let swaps = 1;
+    println!("{}: {:?}", w.len(), (w.len() - swaps..w.len() + swaps));
+    for i in w.len() - swaps..w.len() + swaps + 1 {
+        println!("{i}");
+    }
+
+    let shape = std::fs::read_to_string("assets/shape_temp.txt")
+        .expect("The 'shape.txt' file should be openable/readable x(");
+    println!("{}", shape::find_distance_betwixt("eeri", "please"));
+
+    // let shape = std::fs::read_to_string("assets/shape.txt")?;
     let graph = Graph::new(&shape);
-    // return Ok(());
-    // let reader = io::BufReader::new(shape);
-    // let shape_vec: Vec<Vec<String>> = reader
-    //     .lines()
-    //     .map(|line| {
-    //         line.unwrap()
-    //             .split(' ')
-    //             .map(|word| word.to_string())
-    //             .collect()
-    //     })
-    //     .collect();
 
-    // for (i, ele) in shape_vec.iter().enumerate() {
-    //     println!("{} {:?}", i, ele);
+    for (i, row) in graph.characters.iter().enumerate() {
+        println!("{i} {:?}", row);
+    }
+
+    // let mut words = HashSet::new();
+    // let mut swapped_words = HashSet::new();
+    // for y in 0..5 {
+    //     for x in 0..5 {
+    //         let (valid, swapped) = graph.dfs_traverse((y, x), &dict);
+    //         words.extend(valid);
+    //         swapped_words.extend(swapped);
+    //     }
     // }
-
-    println!("{:?}", shape);
-    for (i, ele) in graph.characters.iter().enumerate() {
-        for (j, c) in ele.iter().enumerate() {
-            println!("{i}, {j}: {:?}", (c, graph.data[i][j]));
-        }
-        // println!("{} {:?}", i, (ele, graph.data[i]));
-    }
-
-    // dbg!(graph);
-    let result: Vec<(usize, usize)> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
-    let r = result
-        .iter()
-        .map(|(x, y)| traverse_dfs(&graph.characters, &dictionary_vec, (*x, *y), 2))
-        .collect::<Vec<Option<(Vec<Vec<(usize, usize)>>, Vec<Vec<(usize, usize)>>)>>>();
-
-    let mut words: HashSet<Vec<(usize, usize)>> = HashSet::new();
-    let mut swaps: HashSet<Vec<(usize, usize)>> = HashSet::new();
-
-    for option in r.into_iter().flatten() {
-        let (word_v, swap_v) = option;
-
-        words.extend(word_v);
-        swaps.extend(swap_v);
-    }
-
-    let mut ordered_v = words
-        .iter()
-        .map(|word_path| {
-            word_path
-                .iter()
-                .map(|(x, y)| graph.characters[*x][*y].to_string())
-                .collect::<String>()
-        })
-        .collect::<Vec<String>>()
-        .into_iter()
-        .map(|word| (word.clone(), evaluate(&word)))
-        .collect::<Vec<(String, u8)>>();
-    // // ordered_v.retain( )
-    // // ordered_v = ordered_v
-    // //     .iter()
-    // //     .map(|w| (w.clone(), evaluate(w)))
-    // //     .collect::<Vec<(String, u8)>>();
     //
-    ordered_v.sort_by_key(|k| k.1);
-    ordered_v.dedup();
-    // println!("{:?}", ordered_v);
-    println!("\x1b[32m{:?}!\x1b[0m", ordered_v.last().unwrap());
+    // let mut words_set = words
+    //     .iter()
+    //     .map(|v| {
+    //         v.iter()
+    //             .map(|&(x, y)| graph.characters[x][y])
+    //             .collect::<String>()
+    //     })
+    //     .collect::<HashSet<String>>();
+    // // words_vec.sort_by_key(|word| word.len());
+    // let swapped_strings = swapped_words.iter().map(|v| v.to_string()).collect();
+    // let diff = words_set
+    //     .symmetric_difference(&swapped_strings)
+    //     .collect::<Vec<&String>>();
+    // println!("{swapped_strings:?}");
+    println!("{:?}", graph.find_word_with_swaps("aloud", 2).len());
+    // graph.find_word_with_swaps("aloud", 2);
+    // println!("{:?}", (&diff, diff.len()));
+    // println!("{words_set:?} - len {}", words_set.len());
+    // println!(" - len: {}", swapped_words.len());
+    // println!(
+    //     "{} - {} = {} duplicates",
+    //     (words_set.len() + swapped_words.len()),
+    //     (diff.len()),
+    //     (words_set.len() + swapped_words.len()) - diff.len()
+    // );
+    // get number of duplicates across both hashsets
+
+    // Evaluate and sort words
+    // let mut scores = words
+    //     .iter()
+    //     .map(|indices| {
+    //         (
+    //             indices
+    //                 .iter()
+    //                 .map(|&(y, x)| graph.characters[y][x])
+    //                 .collect::<String>(),
+    //             graph.evaluate(indices),
+    //         )
+    //     })
+    //     .collect::<Vec<(String, u8)>>();
+    //
+    // scores.sort_by_key(|&(_, value)| value);
+    // scores.dedup_by_key(|pair| pair.0.clone());
+    // scores.retain(|pair| pair.1 > 10);
+    // println!("{:?}", &scores[scores.len() - 5..]);
+    // println!("{scores:?}");
+    // println!("");
+    // dbg!(words);
+
+    // println!("{:?}", traverse_dfs(&graph.characters, &dict.words, (3, 0), 1));
+
+    // let result: Vec<(usize, usize)> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
+    // let r = result
+    //     .iter()
+    //     .map(|&(x, y)| traverse_dfs(&graph.characters, &dict.words, (x, y), 2))
+    //     .collect::<Vec<Option<(Vec<Vec<(usize, usize)>>, Vec<Vec<(usize, usize)>>)>>>();
+    //
+    // let mut words: HashSet<Vec<(usize, usize)>> = HashSet::new();
+    // // let mut swaps: HashSet<Vec<(usize, usize)>> = HashSet::new();
+    //
+    // for option in r.into_iter().flatten() {
+    //     let (word_v, swap_v) = option;
+    //
+    //     words.extend(word_v);
+    //     // swaps.extend(swap_v);
+    // }
+    //
+    // let mut ordered_v = words
+    //     .iter()
+    //     .map(|word_path| {
+    //         word_path
+    //             .iter()
+    //             .map(|&(x, y)| graph.characters[x][y].to_string())
+    //             .collect::<String>()
+    //     })
+    //     .collect::<Vec<String>>();
+    // .into_iter()
+    // .map(|word| (word.clone(), evaluate(&word)))
+    // .collect::<Vec<(String, u8)>>();
+
+    // ordered_v.sort_by_key(|k| k.1);
+    // ordered_v.dedup();
+    // println!("{:?} {}", ordered_v, ordered_v.len());
+    // println!("\x1b[32m{:?}!\x1b[0m", ordered_v.last().unwrap());
 
     // dfs_true("", &shape_vec, (0, 0), &mut HashSet::new());
 
-    // print!("\x1b[2J\x1b[1;1H");
-    // let mut ordered_v = Vec::from_iter(&words);
-    // let mut ordered = ordered_v.iter_mut().map(|(x, y)| &shape_vec[*x][*y]).collect::<Vec<&String>>();
-    // ordered.retain(|w| w.len() > 4);
-    // ordered.sort_by_key(|k| k.len());
-    // ordered.shrink_to_fit();
+    // print!("\x1b[2J\x1b[1;1H"); // clear console
 
-    // println!(
-    //     "words: {:?}",
-    //     (words.len(), ordered.capacity(), ordered.len(), &ordered)
-    // );
-
-    // let mut ordered_swaps = Vec::from_iter(&swaps);
-    // ordered_swaps.retain(|w| w.len() > 4 && !&ordered.contains(w));
-    // ordered_swaps.sort_by_key(|k| k.len());
-    // // ordered_swaps.sort();
-    // ordered_swaps.shrink_to_fit();
-    // println!(
-    //     "words with swaps: {:?}",
-    //     (
-    //         &ordered_swaps,
-    //         ordered_swaps.len(),
-    //         ordered_swaps.capacity()
-    //     )
-    // );
-    //
-    // dbg!(evaluate(ordered_swaps.last().unwrap()));
     Ok(())
 }
 
@@ -206,7 +233,7 @@ fn dfs(
     // println!("{:?}->{:?}", word, converted_word);
     let neighbours = get_neighbours(shape_vec, (index.0 as isize, index.1 as isize))
         .into_iter()
-        .filter(|&n| !visited.contains(&n))
+        .filter(|n| !visited.contains(n))
         .collect::<Vec<(usize, usize)>>();
     for neighbour in &neighbours {
         // if visited.contains(neighbour) {
@@ -239,10 +266,6 @@ fn dfs(
                 word_letter_indices.pop();
                 // println!("{:?} = {:?}?", converted_word, word);
             }
-
-            //     // words_with_letter_swaps
-            //     // words_with_letter_swaps.extend(valid_swaps);
-            // }
 
             visited.insert(*neighbour);
             word_letter_indices.push(*neighbour);
@@ -320,7 +343,7 @@ fn get_neighbours(shape_vec: &[[char; 5]; 5], index: (isize, isize)) -> Vec<(usi
 //     }
 // }
 
-// levenshtein distance algorithm
+// Levenshtein distance algorithm
 fn find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
     let (ly, lx) = (word_a.len(), word_b.len());
     let mut matrix = vec![vec![0u8; lx + 1]; ly + 1];
