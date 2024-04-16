@@ -86,15 +86,15 @@ fn main() -> io::Result<()> {
         println!("{i} {:?}", row);
     }
 
-    // let mut words = HashSet::new();
-    // let mut swapped_words = HashSet::new();
-    // for y in 0..5 {
-    //     for x in 0..5 {
-    //         let (valid, swapped) = graph.dfs_traverse((y, x), &dict);
-    //         words.extend(valid);
-    //         swapped_words.extend(swapped);
-    //     }
-    // }
+    let mut words = HashSet::new();
+    let mut swapped_words = HashSet::new();
+    for y in 0..5 {
+        for x in 0..5 {
+            let (valid, swapped) = graph.dfs_traverse((y, x), &dict);
+            words.extend(valid);
+            swapped_words.extend(swapped);
+        }
+    }
     //
     // let mut words_set = words
     //     .iter()

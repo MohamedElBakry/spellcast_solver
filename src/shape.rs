@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
-
 use rayon::prelude::*;
-
 use crate::dictionary::Dictionary;
-// mod dictionary;
 
 enum Direction {
     N,
@@ -114,7 +111,7 @@ impl Graph {
 
     pub fn dfs_traverse<'a>(
         &self, start_index: (usize, usize), dictionary: &'a Dictionary,
-    ) -> (HashSet<Vec<(usize, usize)>>, HashSet<&'a str>) {
+    ) -> (Vec<Vec<(usize, usize)>>, Vec<&'a str>) {
         let mut visited = HashSet::new();
         visited.insert(start_index);
 
@@ -130,10 +127,10 @@ impl Graph {
     fn dfs<'a>(
         &self, start_index: (usize, usize), visited: &mut HashSet<(usize, usize)>,
         letter_indices: &mut Vec<(usize, usize)>, dictionary: &'a Dictionary,
-    ) -> (HashSet<Vec<(usize, usize)>>, HashSet<&'a str>) {
+    ) -> (Vec<Vec<(usize, usize)>>, Vec<&'a str>) {
         //
-        let mut word_paths = HashSet::new();
-        let mut swappable_words = HashSet::new();
+        let mut word_paths = Vec::new();
+        let mut swappable_words = Vec::new();
 
         let mut word =
             String::from_iter(letter_indices.iter().map(|&(x, y)| self.characters[x][y]));
@@ -154,7 +151,7 @@ impl Graph {
             // character itself from the word and unvisit.
             // it to allow for other combinations with neighbouring letters
             // TODO: Cache invalid prefixes
-            if word.len() >= 5 {
+            if word.len() >= 6 {
                 let swaps = 1;
                 let swap_search_space = dictionary
                     .get_values_from_range((word.len()) as u8..(word.len() + swaps + 1) as u8);
@@ -193,7 +190,7 @@ impl Graph {
 
             // println!("{word}");
             if dictionary.is_valid_word(&word) {
-                word_paths.insert(letter_indices.clone());
+                word_paths.push(letter_indices.clone());
                 // println!("valid {word} {letter_indices:?} {word_paths:?}");
             }
 
@@ -220,77 +217,76 @@ impl Graph {
         let mut swap_paths = Vec::new();
         for y in 0..5 {
             for x in 0..5 {
-                swap_paths.push(self._dfs(
-                    target,
-                    0,
-                    "".to_string(),
-                    (y, x),
-                    vec![],
-                    max_swaps,
-                    &mut HashSet::new(),
-                ));
+                let res = self._dfs(target, 0, (y, x), vec![], max_swaps, &mut HashSet::new());
+                if res.is_none() {
+                    continue;
+                }
+                swap_paths.push(res);
+                return swap_paths;
             }
         }
         swap_paths
     }
 
     fn _dfs(
-        &self, target_word: &str, target_index: usize, mut current_word: String,
-        current_index: (usize, usize), mut current_indices: Vec<(usize, usize)>, mut max_swaps: i8,
+        &self, target_word: &str, target_index: usize, current_index: (usize, usize),
+        mut current_indices: Vec<(usize, usize)>, mut max_swaps: i8,
         visited: &mut HashSet<(usize, usize)>,
     ) -> Option<Vec<(usize, usize)>> {
-        if target_index > target_word.len() - 1 || max_swaps < 0
-        /* && current_word != target_word  */
-        {
-            if /* current_word == target_word  */ current_indices.len() == target_word.len() {
-                println!("yes at end: {current_word} {max_swaps} {current_indices:?}");
+        // Reached end of the word
+        if current_indices.len() == target_word.len() {
+            if max_swaps >= 0 {
+                let word = current_indices
+                    .iter()
+                    .map(|&(y, x)| self.characters[y][x])
+                    .collect::<String>();
+                println!("yes at end: {word}->{target_word} {max_swaps} {current_indices:?}");
                 return Some(current_indices);
             }
-            println!("no bounds or swaps: {current_word} {max_swaps} {current_indices:?}");
+            println!("no: bounds reached or swaps exhausted: {max_swaps} {current_indices:?}");
             return None;
         }
 
+        // Deduct a swap if the letters don't match
         let target_letter = target_word.chars().nth(target_index).unwrap();
         if target_letter != self.characters[current_index.0][current_index.1] {
             max_swaps -= 1;
         }
         current_indices.push(current_index);
-        current_word.push(target_letter);
 
-        // Exhausted swaps and wrong word
+        // Early exit: Exhausted swaps and wrong word
         if max_swaps < 0 {
-            println!("no: {current_word} {max_swaps} {current_indices:?}");
+            println!("no: {max_swaps} {current_indices:?}");
             return None;
-        } /* else if current_word == target_word && max_swaps == 0 {
-            // Matching word within allowed swaps
-            println!("yes: {current_word} {max_swaps} {current_indices:?}");
-            return Some(current_indices);
-        } */
-        
+        }
+
+        // Visit each unvisted neighbour for more permutations
+        // E.g. re + (a | x | j | ...)
         let unvisted = self
             .get_neighbours(current_index)
             .iter()
             .filter(|n| !visited.contains(n))
             .collect::<Vec<_>>();
         let mut result = Vec::new();
+
         for neighbour in unvisted {
             visited.insert(*neighbour);
+
             if let Some(res) = self._dfs(
                 target_word,
                 target_index + 1,
-                current_word.clone(),
                 *neighbour,
                 current_indices.clone(),
                 max_swaps,
                 visited,
             ) {
-                result.extend(res)
+                result.extend(res);
+                break; // Remove to explore more
             }
             visited.remove(neighbour);
         }
 
         current_indices.pop();
-        current_word.pop();
         if result.is_empty() {
             None
         } else {
@@ -310,6 +306,42 @@ impl Graph {
         sum += if word_letter_indices.len() > 5 { 10 } else { 0 };
 
         sum * word_multiplier
+    }
+    pub fn trace(&self, word_path: &[(usize, usize)]) {
+        for y in 0..self.characters.len() {
+            for x in 0..self.characters[y].len() {
+                if word_path.contains(&(y, x)) {
+                    print!("\x1b[32m{}\x1b[0m ", self.characters[y][x]);
+                } else {
+                    print!("{} ", self.characters[y][x]);
+                }
+            }
+            println!();
+        }
+        println!();
+    }
+
+    pub fn trace_swapped(&self, word: &str, word_path: &[(usize, usize)]) {
+        let mut word_iter = word.chars();
+        for y in 0..self.characters.len() {
+            for x in 0..self.characters[y].len() {
+                // node is part of the word
+                if word_path.contains(&(y, x)) {
+                    // let current_char = word_iter.next().unwrap();
+                    let cc = word_path.iter().position(|&node| node == (y, x)).unwrap();
+                    let current_char = word[cc..=cc].chars().next().unwrap();
+                    let is_swapped = current_char != self.characters[y][x];
+                    if is_swapped {
+                        print!("\x1b[31m{}\x1b[0m ", current_char);
+                    } else {
+                        print!("\x1b[32m{}\x1b[0m ", self.characters[y][x]);
+                    }
+                } else {
+                    print!("{} ", self.characters[y][x]);
+                }
+            }
+            println!();
+        }
     }
     // fn log(&self) {
     //     for (i, ele) in self.characters.iter().enumerate() {
