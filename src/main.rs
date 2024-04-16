@@ -95,7 +95,7 @@ fn main() -> io::Result<()> {
             swapped_words.extend(swapped);
         }
     }
-    //
+
     // let mut words_set = words
     //     .iter()
     //     .map(|v| {
@@ -110,7 +110,7 @@ fn main() -> io::Result<()> {
     //     .symmetric_difference(&swapped_strings)
     //     .collect::<Vec<&String>>();
     // println!("{swapped_strings:?}");
-    println!("{:?}", graph.find_word_with_swaps("aloud", 2).len());
+    // println!("{:?}", graph.find_word_with_swaps("aloud", 2).len());
     // graph.find_word_with_swaps("aloud", 2);
     // println!("{:?}", (&diff, diff.len()));
     // println!("{words_set:?} - len {}", words_set.len());
@@ -124,43 +124,55 @@ fn main() -> io::Result<()> {
     // get number of duplicates across both hashsets
 
     // Evaluate and sort words
-    // let mut scores = words
-    //     .iter()
-    //     .map(|indices| {
-    //         (
-    //             indices
-    //                 .iter()
-    //                 .map(|&(y, x)| graph.characters[y][x])
-    //                 .collect::<String>(),
-    //             graph.evaluate(indices),
-    //         )
-    //     })
-    //     .collect::<Vec<(String, u8)>>();
+    let mut scores = words
+        .iter()
+        .map(|indices| {
+            (
+                indices
+                    .iter()
+                    .map(|&(y, x)| graph.characters[y][x])
+                    .collect::<String>(),
+                graph.evaluate(indices),
+            )
+        })
+        .collect::<Vec<(String, u8)>>();
     //
-    // scores.sort_by_key(|&(_, value)| value);
-    // scores.dedup_by_key(|pair| pair.0.clone());
+    scores.sort_by_key(|&(_, value)| value);
+    scores.dedup_by_key(|(s, _)| s.clone());
+
+    let swap_scores = swapped_words
+        .iter()
+        .map(|&s| {
+            let path = graph
+                .find_word_with_swaps(s, 1)
+                .first()
+                .unwrap()
+                .clone()
+                .unwrap();
+            graph.trace_swapped(s, &path);
+            (s, graph.evaluate(&path), graph.evaluate_swapped(s, &path))
+        })
+        .collect::<Vec<_>>();
+    println!("{swap_scores:?}");
     // scores.retain(|pair| pair.1 > 10);
-    // println!("{:?}", &scores[scores.len() - 5..]);
+    println!("{:?}", &scores[scores.len() - 5..]);
     // println!("{scores:?}");
-    // println!("");
-    // dbg!(words);
 
-    // println!("{:?}", traverse_dfs(&graph.characters, &dict.words, (3, 0), 1));
-
+    // Old
     // let result: Vec<(usize, usize)> = (0..5).flat_map(|x| (0..5).map(move |y| (x, y))).collect();
     // let r = result
     //     .iter()
     //     .map(|&(x, y)| traverse_dfs(&graph.characters, &dict.words, (x, y), 2))
     //     .collect::<Vec<Option<(Vec<Vec<(usize, usize)>>, Vec<Vec<(usize, usize)>>)>>>();
-    //
+
     // let mut words: HashSet<Vec<(usize, usize)>> = HashSet::new();
-    // // let mut swaps: HashSet<Vec<(usize, usize)>> = HashSet::new();
+    // let mut swaps: HashSet<Vec<(usize, usize)>> = HashSet::new();
     //
     // for option in r.into_iter().flatten() {
     //     let (word_v, swap_v) = option;
     //
     //     words.extend(word_v);
-    //     // swaps.extend(swap_v);
+    //     swaps.extend(swap_v);
     // }
     //
     // let mut ordered_v = words
@@ -172,12 +184,12 @@ fn main() -> io::Result<()> {
     //             .collect::<String>()
     //     })
     //     .collect::<Vec<String>>();
-    // .into_iter()
-    // .map(|word| (word.clone(), evaluate(&word)))
-    // .collect::<Vec<(String, u8)>>();
-
-    // ordered_v.sort_by_key(|k| k.1);
-    // ordered_v.dedup();
+    // // .into_iter()
+    // // .map(|word| (word.clone(), evaluate(&word)))
+    // // .collect::<Vec<(String, u8)>>();
+    //
+    // // ordered_v.sort_by_key(|k| k.1);
+    // // ordered_v.dedup();
     // println!("{:?} {}", ordered_v, ordered_v.len());
     // println!("\x1b[32m{:?}!\x1b[0m", ordered_v.last().unwrap());
 

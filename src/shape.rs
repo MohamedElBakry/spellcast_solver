@@ -240,10 +240,10 @@ impl Graph {
                     .iter()
                     .map(|&(y, x)| self.characters[y][x])
                     .collect::<String>();
-                println!("yes at end: {word}->{target_word} {max_swaps} {current_indices:?}");
+                // println!("yes at end: {word}->{target_word} {max_swaps} {current_indices:?}");
                 return Some(current_indices);
             }
-            println!("no: bounds reached or swaps exhausted: {max_swaps} {current_indices:?}");
+            // println!("no: bounds reached or swaps exhausted: {max_swaps} {current_indices:?}");
             return None;
         }
 
@@ -256,7 +256,7 @@ impl Graph {
 
         // Early exit: Exhausted swaps and wrong word
         if max_swaps < 0 {
-            println!("no: {max_swaps} {current_indices:?}");
+            // println!("no: {max_swaps} {current_indices:?}");
             return None;
         }
 
@@ -307,6 +307,24 @@ impl Graph {
 
         sum * word_multiplier
     }
+
+    pub fn evaluate_swapped(&self, word: &str, word_letter_indices: &[(usize, usize)]) -> u8 {
+        let mut word_multiplier = 1;
+        let mut sum = 0;
+        let mut iter = word.chars();
+        for &(y, x) in word_letter_indices.iter() {
+            let letter_data = self.data[y][x];
+            let current_char = iter.next().unwrap();
+            let pure_value = if current_char == self.characters[y][x] { letter_data.pure_value } else { evaluate(current_char) };
+            sum += pure_value * letter_data.letter_multiplier;
+            word_multiplier = word_multiplier.max(letter_data.word_multiplier);
+        }
+        // Long word bonus before or after word_multiplier?
+        sum += if word_letter_indices.len() > 5 { 10 } else { 0 };
+
+        sum * word_multiplier
+    }
+
     pub fn trace(&self, word_path: &[(usize, usize)]) {
         for y in 0..self.characters.len() {
             for x in 0..self.characters[y].len() {
@@ -342,6 +360,7 @@ impl Graph {
             }
             println!();
         }
+        println!();
     }
     // fn log(&self) {
     //     for (i, ele) in self.characters.iter().enumerate() {
