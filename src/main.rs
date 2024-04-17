@@ -75,7 +75,7 @@ fn main() -> io::Result<()> {
         println!("{i}");
     }
 
-    let shape = std::fs::read_to_string("assets/shape_temp.txt")
+    let shape = std::fs::read_to_string("assets/shape.txt")
         .expect("The 'shape.txt' file should be openable/readable x(");
     println!("{}", shape::find_distance_betwixt("eeri", "please"));
 
@@ -149,11 +149,16 @@ fn main() -> io::Result<()> {
                 .unwrap()
                 .clone()
                 .unwrap();
-            graph.trace_swapped(s, &path);
-            (s, graph.evaluate(&path), graph.evaluate_swapped(s, &path))
+            let trace = graph.trace_swapped(s, &path);
+
+            (s, graph.evaluate(&path), trace, graph.evaluate_swapped(s, &path))
         })
         .collect::<Vec<_>>();
-    println!("{swap_scores:?}");
+    // println!("{swap_scores:?}");
+
+    for (s, ev, t, evt) in swap_scores {
+        println!("{t}{s} {ev}->{evt}\n");
+    }
     // scores.retain(|pair| pair.1 > 10);
     println!("{:?}", &scores[scores.len() - 5..]);
     // println!("{scores:?}");

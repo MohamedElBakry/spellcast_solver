@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use rayon::prelude::*;
 use crate::dictionary::Dictionary;
+use rayon::prelude::*;
+use std::collections::{HashMap, HashSet};
 
 enum Direction {
     N,
@@ -315,7 +315,11 @@ impl Graph {
         for &(y, x) in word_letter_indices.iter() {
             let letter_data = self.data[y][x];
             let current_char = iter.next().unwrap();
-            let pure_value = if current_char == self.characters[y][x] { letter_data.pure_value } else { evaluate(current_char) };
+            let pure_value = if current_char == self.characters[y][x] {
+                letter_data.pure_value
+            } else {
+                evaluate(current_char)
+            };
             sum += pure_value * letter_data.letter_multiplier;
             word_multiplier = word_multiplier.max(letter_data.word_multiplier);
         }
@@ -339,8 +343,8 @@ impl Graph {
         println!();
     }
 
-    pub fn trace_swapped(&self, word: &str, word_path: &[(usize, usize)]) {
-        let mut word_iter = word.chars();
+    pub fn trace_swapped(&self, word: &str, word_path: &[(usize, usize)]) -> String {
+        let mut trace = String::new();
         for y in 0..self.characters.len() {
             for x in 0..self.characters[y].len() {
                 // node is part of the word
@@ -350,17 +354,17 @@ impl Graph {
                     let current_char = word[cc..=cc].chars().next().unwrap();
                     let is_swapped = current_char != self.characters[y][x];
                     if is_swapped {
-                        print!("\x1b[31m{}\x1b[0m ", current_char);
+                        trace.push_str(&format!("\x1b[31m{}\x1b[0m ", current_char));
                     } else {
-                        print!("\x1b[32m{}\x1b[0m ", self.characters[y][x]);
+                        trace.push_str(&format!("\x1b[32m{}\x1b[0m ", self.characters[y][x]));
                     }
                 } else {
-                    print!("{} ", self.characters[y][x]);
+                    trace.push_str(&format!("{} ", self.characters[y][x]));
                 }
             }
-            println!();
+            trace.push('\n');
         }
-        println!();
+        trace
     }
     // fn log(&self) {
     //     for (i, ele) in self.characters.iter().enumerate() {
