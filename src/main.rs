@@ -151,12 +151,18 @@ fn main() -> io::Result<()> {
                 .unwrap();
             let trace = graph.trace_swapped(s, &path);
 
-            (s, graph.evaluate(&path), trace, graph.evaluate_swapped(s, &path))
+            (
+                s,
+                graph.evaluate(&path),
+                trace,
+                graph.evaluate_swapped(s, &path),
+                path,
+            )
         })
         .collect::<Vec<_>>();
     // println!("{swap_scores:?}");
 
-    for (s, ev, t, evt) in swap_scores {
+    for (s, ev, t, evt, _path) in swap_scores {
         println!("{t}{s} {ev}->{evt}\n");
     }
     // scores.retain(|pair| pair.1 > 10);

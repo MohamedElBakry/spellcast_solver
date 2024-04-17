@@ -217,7 +217,7 @@ impl Graph {
         let mut swap_paths = Vec::new();
         for y in 0..5 {
             for x in 0..5 {
-                let res = self._dfs(target, 0, (y, x), vec![], max_swaps, &mut HashSet::new());
+                let res = self._dfs(target, 0, (y, x), vec![], max_swaps, &mut HashSet::from([(y, x)]));
                 if res.is_none() {
                     continue;
                 }
@@ -262,14 +262,13 @@ impl Graph {
 
         // Visit each unvisted neighbour for more permutations
         // E.g. re + (a | x | j | ...)
-        let unvisted = self
-            .get_neighbours(current_index)
-            .iter()
-            .filter(|n| !visited.contains(n))
-            .collect::<Vec<_>>();
         let mut result = Vec::new();
 
-        for neighbour in unvisted {
+        for neighbour in self.get_neighbours(current_index) {
+            if visited.contains(neighbour) {
+                continue;
+            }
+
             visited.insert(*neighbour);
 
             if let Some(res) = self._dfs(
