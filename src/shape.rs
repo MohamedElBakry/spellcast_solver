@@ -134,14 +134,17 @@ impl Graph {
 
         let mut word =
             String::from_iter(letter_indices.iter().map(|&(x, y)| self.characters[x][y]));
-        let unvisited_neighbours: Vec<(usize, usize)> = self
-            .get_neighbours(start_index)
-            .iter()
-            .filter(|&index| !visited.contains(index))
-            .cloned()
-            .collect();
+        // let unvisited_neighbours: Vec<(usize, usize)> = self
+        //     .get_neighbours(start_index)
+        //     .iter()
+        //     .filter(|&index| !visited.contains(index))
+        //     .copied()
+        //     .collect();
 
-        for neighbour in &unvisited_neighbours {
+        for neighbour in self.get_neighbours(start_index) {
+            if visited.contains(neighbour) {
+                continue;
+            }
             // Visit, add potential prefix to word and vec.
             visited.insert(*neighbour);
             word.push(self.characters[neighbour.0][neighbour.1]);
@@ -207,17 +210,15 @@ impl Graph {
         (word_paths, swappable_words)
     }
 
-    pub fn find_word_with_swaps(
-        &self, target: &str, max_swaps: i8,
-    ) -> Vec<Option<Vec<(usize, usize)>>> {
+    // return the path with the greatest number of swaps remaining
+    pub fn find_word_with_swaps(&self, target: &str, max_swaps: i8) -> Option<Vec<(usize, usize)>> {
         // Scenarios:
         // 1. current letter matches target's letter: continue
         // 2. current letter does not match the target's letter: swap - 1 if swap > 0
 
-        let mut swap_paths = Vec::new();
         for y in 0..5 {
             for x in 0..5 {
-                let res = self._dfs(
+                let path = self._dfs(
                     target,
                     0,
                     (y, x),
@@ -225,14 +226,15 @@ impl Graph {
                     max_swaps,
                     &mut HashSet::from([(y, x)]),
                 );
-                if res.is_none() {
+
+                if path.is_none() {
                     continue;
+                } else {
+                    return path;
                 }
-                swap_paths.push(res);
-                return swap_paths;
             }
         }
-        swap_paths
+        None
     }
 
     fn _dfs(
@@ -263,7 +265,6 @@ impl Graph {
 
         // Early exit: Exhausted swaps and wrong word
         if max_swaps < 0 {
-            // println!("no: {max_swaps} {current_indices:?}");
             return None;
         }
 
@@ -293,11 +294,12 @@ impl Graph {
         }
 
         current_indices.pop();
+
         if result.is_empty() {
-            None
-        } else {
-            Some(result)
+            return None;
         }
+
+        Some(result)
     }
 
     pub fn evaluate(&self, word_letter_indices: &[(usize, usize)]) -> u8 {

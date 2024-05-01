@@ -35,7 +35,7 @@ fn main() -> io::Result<()> {
     //     .collect::<Vec<(u8, usize)>>();
     // counts.sort();
     // println!("lengths: {:?}", counts);
-
+    //
     let mut b = dict.word_buckets.keys().collect::<Vec<_>>();
     b.sort();
     println!("{b:?}");
@@ -47,7 +47,7 @@ fn main() -> io::Result<()> {
         println!("{i}");
     }
 
-    let shape = std::fs::read_to_string("assets/shape.txt")
+    let shape = std::fs::read_to_string("assets/shape_temp.txt")
         .expect("The 'shape.txt' file should be openable/readable x(");
 
     let graph = Graph::new(&shape);
@@ -84,35 +84,25 @@ fn main() -> io::Result<()> {
     scores.dedup_by_key(|(s, _, _)| s.clone());
 
     // TODO: make find_word_with_swaps only return 1 the first path and not multiple paths
-    // let swap_scores = swapped_words
-    //     .iter()
-    //     .map(|&s| {
-    //         let path = graph
-    //             .find_word_with_swaps(s, 1)
-    //             .first()
-    //             .unwrap()
-    //             .clone()
-    //             .unwrap();
-    //         let trace = graph.trace_swapped(s, &path);
-    //
-    //         (
-    //             s,
-    //             graph.evaluate(&path),
-    //             trace,
-    //             graph.evaluate_swapped(s, &path),
-    //             path,
-    //         )
-    //     })
-    //     .collect::<Vec<_>>();
+    let swap_scores = swapped_words.iter().map(|&s| {
+        if let Some(path) = graph.find_word_with_swaps(s, 1) {
+            let trace = graph.trace_swapped(s, &path);
 
-    // for (s, ev, t, evt, path) in swap_scores {
-    //     println!("{t}{s} {ev}->{evt} {path:?}\n");
-    // }
-    // scores.retain(|pair| pair.1 > 10);
-    for v in &scores[scores.len() - 5..] {
-        println!("{:?}", (&v.0, v.1));
-        graph.trace(v.2);
+            Some((s, graph.evaluate(&path), trace, graph.evaluate_swapped(s, &path), path))
+        } else {
+            None
+        }
+    }).collect::<Vec<_>>();
+
+    for (s, ev, t, evt, path) in swap_scores.iter().flatten() {
+        println!("{t}{s} {ev}->{evt} {path:?}\n");
     }
+
+    // scores.retain(|pair| pair.1 > 10);
+    // for v in &scores[scores.len() - 5..] {
+    //     println!("{:?}", (&v.0, v.1));
+    //     graph.trace(v.2);
+    // }
     // println!("{swapped_words:?}");
     // println!("{scores:?}");
     // print!("\x1b[2J\x1b[1;1H"); // clear console
