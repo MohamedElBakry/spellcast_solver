@@ -2,6 +2,7 @@ use rayon::prelude::*;
 use std::cmp::min;
 use std::collections::HashSet;
 use std::io::{self};
+use std::rc::Rc;
 
 mod dictionary;
 mod shape;
@@ -32,7 +33,6 @@ impl Direction {
         }
     }
 }
-// #[derive(Debug)]
 
 // TODO:
 // 0. Fuzzy string search ✅
@@ -49,12 +49,12 @@ fn main() -> io::Result<()> {
     // Traverse and Match to words.txt
     let dictionary_string =
         std::fs::read_to_string("assets/words.txt").expect("The words list should readable x(");
-    // const dictionary_string: &str = include_str!("../assets/word.list.txt");
-    let dictionary_vec: Vec<&str> = dictionary_string.lines().collect();
+    // const dictionary_string: &str = include_str!("../assets/words.txt");
+    // let dictionary_vec: Vec<&str> = dictionary_string.lines().collect();
     // const DS: &str = include_str!("../assets/collins.txt");
     // let dictionary_vec: Vec<&str> = DS.split('\n').collect();
 
-    let dict = dictionary::Dictionary::new(dictionary_vec);
+    let dict = dictionary::Dictionary::new(&dictionary_string);
 
     // let mut counts = dict
     //     .word_buckets
@@ -77,11 +77,10 @@ fn main() -> io::Result<()> {
 
     let shape = std::fs::read_to_string("assets/shape.txt")
         .expect("The 'shape.txt' file should be openable/readable x(");
-    println!("{}", shape::find_distance_betwixt("eeri", "please"));
+    // println!("{}", shape::find_distance_betwixt("eeri", "please"));
 
     // let shape = std::fs::read_to_string("assets/shape.txt")?;
     let graph = Graph::new(&shape);
-
     for (i, row) in graph.characters.iter().enumerate() {
         println!("{i} {:?}", row);
     }
@@ -133,40 +132,44 @@ fn main() -> io::Result<()> {
                     .map(|&(y, x)| graph.characters[y][x])
                     .collect::<String>(),
                 graph.evaluate(indices),
-            )
-        })
-        .collect::<Vec<(String, u8)>>();
-    //
-    scores.sort_by_key(|&(_, value)| value);
-    scores.dedup_by_key(|(s, _)| s.clone());
-
-    let swap_scores = swapped_words
-        .iter()
-        .map(|&s| {
-            let path = graph
-                .find_word_with_swaps(s, 1)
-                .first()
-                .unwrap()
-                .clone()
-                .unwrap();
-            let trace = graph.trace_swapped(s, &path);
-
-            (
-                s,
-                graph.evaluate(&path),
-                trace,
-                graph.evaluate_swapped(s, &path),
-                path,
+                indices,
             )
         })
         .collect::<Vec<_>>();
-    // println!("{swap_scores:?}");
+    //
+    scores.sort_by_key(|&(_, value, _)| value);
+    scores.dedup_by_key(|(s, _, _)| s.clone());
 
-    for (s, ev, t, evt, _path) in swap_scores {
-        println!("{t}{s} {ev}->{evt}\n");
-    }
+    // let swap_scores = swapped_words
+    //     .iter()
+    //     .map(|&s| {
+    //         let path = graph
+    //             .find_word_with_swaps(s, 1)
+    //             .first()
+    //             .unwrap()
+    //             .clone()
+    //             .unwrap();
+    //         let trace = graph.trace_swapped(s, &path);
+    //
+    //         (
+    //             s,
+    //             graph.evaluate(&path),
+    //             trace,
+    //             graph.evaluate_swapped(s, &path),
+    //             path,
+    //         )
+    //     })
+    //     .collect::<Vec<_>>();
+
+    // for (s, ev, t, evt, path) in swap_scores {
+    //     println!("{t}{s} {ev}->{evt} {path:?}\n");
+    // }
     // scores.retain(|pair| pair.1 > 10);
-    println!("{:?}", &scores[scores.len() - 5..]);
+    for v in &scores[scores.len() - 5..] {
+        println!("{:?}", (&v.0, v.1));
+        graph.trace(v.2);
+    }
+    // println!("{swapped_words:?}");
     // println!("{scores:?}");
 
     // Old

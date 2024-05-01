@@ -165,7 +165,7 @@ impl Graph {
                 let swapped_words = swap_search_space
                     .into_par_iter()
                     .flatten()
-                    .filter(|&w| find_distance_betwixt(w, &word) <= swaps as u8)
+                    .filter(|&w| find_distance_betwixt_optimised(w, &word) <= swaps as u8)
                     .collect::<Vec<_>>();
                 swappable_words.extend(swapped_words.clone());
 
@@ -217,7 +217,14 @@ impl Graph {
         let mut swap_paths = Vec::new();
         for y in 0..5 {
             for x in 0..5 {
-                let res = self._dfs(target, 0, (y, x), vec![], max_swaps, &mut HashSet::from([(y, x)]));
+                let res = self._dfs(
+                    target,
+                    0,
+                    (y, x),
+                    vec![],
+                    max_swaps,
+                    &mut HashSet::from([(y, x)]),
+                );
                 if res.is_none() {
                     continue;
                 }
@@ -263,7 +270,7 @@ impl Graph {
         // Visit each unvisted neighbour for more permutations
         // E.g. re + (a | x | j | ...)
         let mut result = Vec::new();
-
+        // TODO:  consider readding filter
         for neighbour in self.get_neighbours(current_index) {
             if visited.contains(neighbour) {
                 continue;
@@ -409,6 +416,36 @@ pub fn find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
     }
 
     matrix[a_len][b_len]
+}
+
+pub fn find_distance_betwixt_optimised(word_a: &str, word_b: &str) -> u8 {
+    let m = word_a.len() as u8;
+    let n = word_b.len() as u8;
+    let word_a = word_a.as_bytes();
+    let word_b = word_b.as_bytes();
+
+    let mut matrix: [Vec<u8>; 2] = [vec![0; n as usize + 1], vec![0; n as usize + 1]];
+
+    for i in 0..=n as usize {
+        matrix[0][i] = i as u8;
+    }
+
+    for i in 1..=m as usize {
+        matrix[i % 2][0] = i as u8;
+        for j in 1..=n as usize {
+            // if they're the same, then their cost is the previous cost (-1, -1)
+            if word_a[i - 1] == word_b[j - 1] {
+                matrix[i % 2][j] = matrix[(i - 1) % 2][j - 1];
+            } else {
+                // otherwise, the cost is the lowest cost so far + 1
+                matrix[i % 2][j] = 1 + matrix[(i - 1) % 2][j]
+                    .min(matrix[i % 2][j - 1])
+                    .min(matrix[(i - 1) % 2][j - 1]);
+            }
+        }
+    }
+
+    matrix[m as usize % 2][n as usize]
 }
 
 fn get_neighbours(shape_vec: &[[char; 5]; 5], index: (isize, isize)) -> Vec<(usize, usize)> {

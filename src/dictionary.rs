@@ -1,17 +1,16 @@
-use std::collections::HashMap;
-// use std::sync::RwLock;
-// use rayon::prelude::*;
+use std::{collections::HashMap, fs::read_to_string, rc::Rc, sync::Arc};
 
 #[derive(Debug)]
 pub struct Dictionary<'a> {
-    pub words: Vec<&'a str>,
+    pub words: Box<[&'a str]>,
     pub word_buckets: HashMap<u8, Vec<&'a str>>,
 }
 
 impl<'a> Dictionary<'a> {
-    pub fn new(words: Vec<&'a str>) -> Self {
+    pub fn new(words_file: &'a str) -> Self {
+        let words: Box<[&str]> = words_file.lines().collect();
         let mut word_buckets = HashMap::new();
-        for word in &words {
+        for word in words.iter() {
             word_buckets
                 .entry(word.len() as u8)
                 .and_modify(|vector: &mut Vec<&'a str>| vector.push(word))
