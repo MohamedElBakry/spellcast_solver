@@ -2,32 +2,6 @@ use crate::dictionary::Dictionary;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-enum Direction {
-    N,
-    NE,
-    E,
-    SE,
-    S,
-    SW,
-    W,
-    NW,
-}
-
-impl Direction {
-    const fn direction_to_relative_index(direction: &Direction) -> (isize, isize) {
-        match direction {
-            Direction::N => (-1, 0),
-            Direction::NE => (-1, 1),
-            Direction::E => (0, 1),
-            Direction::SE => (1, 1),
-            Direction::S => (1, 0),
-            Direction::SW => (1, -1),
-            Direction::W => (0, -1),
-            Direction::NW => (-1, -1),
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct LetterData {
     pure_value: u8,
@@ -154,7 +128,7 @@ impl Graph {
             // character itself from the word and unvisit.
             // it to allow for other combinations with neighbouring letters
             // TODO: Cache invalid prefixes
-            if word.len() >= 6 {
+            if word.len() > 5 {
                 let swaps = 1;
                 let swap_search_space = dictionary
                     .get_values_from_range((word.len()) as u8..(word.len() + swaps + 1) as u8);
@@ -421,20 +395,20 @@ pub fn find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
 }
 
 pub fn find_distance_betwixt_optimised(word_a: &str, word_b: &str) -> u8 {
-    let m = word_a.len() as u8;
-    let n = word_b.len() as u8;
+    let m = word_a.len();
+    let n = word_b.len();
     let word_a = word_a.as_bytes();
     let word_b = word_b.as_bytes();
 
-    let mut matrix: [Vec<u8>; 2] = [vec![0; n as usize + 1], vec![0; n as usize + 1]];
+    let mut matrix: [Vec<u8>; 2] = [vec![0; n + 1], vec![0; n + 1]];
 
-    for i in 0..=n as usize {
+    for i in 0..=n {
         matrix[0][i] = i as u8;
     }
 
-    for i in 1..=m as usize {
+    for i in 1..=m {
         matrix[i % 2][0] = i as u8;
-        for j in 1..=n as usize {
+        for j in 1..=n {
             // if they're the same, then their cost is the previous cost (-1, -1)
             if word_a[i - 1] == word_b[j - 1] {
                 matrix[i % 2][j] = matrix[(i - 1) % 2][j - 1];
@@ -447,32 +421,30 @@ pub fn find_distance_betwixt_optimised(word_a: &str, word_b: &str) -> u8 {
         }
     }
 
-    matrix[m as usize % 2][n as usize]
+    matrix[m % 2][n]
 }
 
 fn get_neighbours(shape_vec: &[[char; 5]; 5], index: (isize, isize)) -> Vec<(usize, usize)> {
-    const DIRECTIONS: [Direction; 8] = [
-        Direction::N,
-        Direction::NE,
-        Direction::E,
-        Direction::SE,
-        Direction::S,
-        Direction::SW,
-        Direction::W,
-        Direction::NW,
+    const DIRECTIONS: [(isize, isize); 8] = [
+        (-1, 0),  // N
+        (-1, 1),  // NE
+        (0, 1),   // E
+        (1, 1),   // SE
+        (1, 0),   // S
+        (1, -1),  // SW
+        (0, -1),  // W
+        (-1, -1), // NW
     ];
 
+    let (rows, cols) = (shape_vec.len() as isize, shape_vec[0].len() as isize);
     let mut neighbours: Vec<(usize, usize)> = Vec::with_capacity(8);
-    for direction in DIRECTIONS {
-        let dir = Direction::direction_to_relative_index(&direction);
-        let new_index = (index.0 + dir.0, index.1 + dir.1);
-        if (new_index.0 < 0 || new_index.0 >= shape_vec.len() as isize)
-            || (new_index.1 < 0 || new_index.1 >= shape_vec[0].len() as isize)
-        {
+    for (dy, dx) in DIRECTIONS {
+        let (y, x) = (index.0 + dy, index.1 + dx);
+        if (y < 0 || y >= rows) || (x < 0 || x >= cols) {
             continue;
         }
 
-        let new_index: (usize, usize) = (new_index.0 as usize, new_index.1 as usize);
+        let new_index: (usize, usize) = (y as usize, x as usize);
         neighbours.push(new_index);
     }
 

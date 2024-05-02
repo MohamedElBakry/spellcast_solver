@@ -19,12 +19,9 @@ use crate::shape::Graph;
 fn main() -> io::Result<()> {
     // Read file shape.txt
     // Traverse and Match to words.txt
+    // const dictionary_string: &str = include_str!("../assets/words.txt");
     let dictionary_string =
         std::fs::read_to_string("assets/words.txt").expect("The words list should readable x(");
-    // const dictionary_string: &str = include_str!("../assets/words.txt");
-    // let dictionary_vec: Vec<&str> = dictionary_string.lines().collect();
-    // const DS: &str = include_str!("../assets/collins.txt");
-    // let dictionary_vec: Vec<&str> = DS.split('\n').collect();
 
     let dict = dictionary::Dictionary::new(&dictionary_string);
 
@@ -40,10 +37,14 @@ fn main() -> io::Result<()> {
     b.sort();
     println!("{b:?}");
 
-    let w = "spaghetti";
+    let word = "spaghetti";
     let swaps = 1;
-    println!("{}: {:?}", w.len(), (w.len() - swaps..w.len() + swaps));
-    for i in w.len() - swaps..=w.len() + swaps {
+    println!(
+        "{}: {:?}",
+        word.len(),
+        (word.len() - swaps..word.len() + swaps)
+    );
+    for i in word.len() - swaps..=word.len() + swaps {
         println!("{i}");
     }
 
@@ -79,20 +80,28 @@ fn main() -> io::Result<()> {
             )
         })
         .collect::<Vec<_>>();
-    //
+
     scores.sort_by_key(|&(_, value, _)| value);
     scores.dedup_by_key(|(s, _, _)| s.clone());
 
     // TODO: make find_word_with_swaps only return 1 the first path and not multiple paths
-    let swap_scores = swapped_words.iter().map(|&s| {
-        if let Some(path) = graph.find_word_with_swaps(s, 1) {
-            let trace = graph.trace_swapped(s, &path);
-
-            Some((s, graph.evaluate(&path), trace, graph.evaluate_swapped(s, &path), path))
-        } else {
-            None
-        }
-    }).collect::<Vec<_>>();
+    let swap_scores = swapped_words
+        .iter()
+        .map(|&s| {
+            if let Some(path) = graph.find_word_with_swaps(s, 1) {
+                let trace = graph.trace_swapped(s, &path);
+                Some((
+                    s,
+                    graph.evaluate(&path),
+                    trace,
+                    graph.evaluate_swapped(s, &path),
+                    path,
+                ))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
 
     for (s, ev, t, evt, path) in swap_scores.iter().flatten() {
         println!("{t}{s} {ev}->{evt} {path:?}\n");
