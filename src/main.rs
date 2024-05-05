@@ -1,4 +1,4 @@
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use std::collections::HashSet;
 use std::io::{self};
 
@@ -33,6 +33,7 @@ fn main() -> io::Result<()> {
     // counts.sort();
     // println!("lengths: {:?}", counts);
     //
+
     let mut b = dict.word_buckets.keys().collect::<Vec<_>>();
     b.sort();
     println!("{b:?}");
@@ -62,7 +63,7 @@ fn main() -> io::Result<()> {
         for x in 0..5 {
             let (valid, swapped) = graph.dfs_traverse((y, x), &dict);
             words.extend(valid);
-            swapped_words.extend(swapped);
+            swapped_words.extend(swapped.iter());
         }
     }
 
@@ -104,17 +105,20 @@ fn main() -> io::Result<()> {
         .collect::<Vec<_>>();
 
     for (s, ev, t, evt, path) in swap_scores.iter().flatten() {
-        println!("{t}{s} {ev}->{evt} {path:?}\n");
+        println!("{t}{s} {ev:?}->{evt:?} {path:?}\n");
     }
 
-    // scores.retain(|pair| pair.1 > 10);
+    // scores.retain(|pair| pair.1 .0 > 10);
     // for v in &scores[scores.len() - 5..] {
     //     println!("{:?}", (&v.0, v.1));
     //     graph.trace(v.2);
     // }
+
     // println!("{swapped_words:?}");
     // println!("{scores:?}");
     // print!("\x1b[2J\x1b[1;1H"); // clear console
+    // let s = get_starting_matches(&"spa".to_string(), &dict.words);
+    // println!("{s:?}");
 
     Ok(())
 }

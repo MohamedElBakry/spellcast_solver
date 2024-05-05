@@ -27,16 +27,11 @@ impl Graph {
             has_gem: false,
         };
         let mut data = [[letter_data; 5]; 5];
-        let mut adjacency_list = HashMap::new();
+        let mut adjacency_list = HashMap::with_capacity(25);
 
         // [2/3][D/T][£]c
         let mut letter = ' ';
-        let (mut pure_value, mut word_multiplier, mut letter_multiplier, mut has_gem): (
-            u8,
-            u8,
-            u8,
-            bool,
-        ) = (1, 1, 1, false);
+        let (mut word_multiplier, mut letter_multiplier, mut has_gem) = (1, 1, false);
         for (y, line) in graph.lines().enumerate() {
             for (x, letter_group) in line.split(' ').enumerate() {
                 for c in letter_group.chars() {
@@ -52,7 +47,7 @@ impl Graph {
 
                 // Apply
                 characters[y][x] = letter;
-                pure_value = evaluate(letter);
+                let pure_value = evaluate(letter);
                 data[y][x] = LetterData {
                     pure_value,
                     word_multiplier,
@@ -77,7 +72,7 @@ impl Graph {
         }
     }
 
-    pub fn get_neighbours(&self, index: (usize, usize)) -> &Vec<(usize, usize)> {
+    pub fn get_stored_neighbours(&self, index: (usize, usize)) -> &[(usize, usize)] {
         self.adjacency_list
             .get(&index)
             .expect("node should have neighbours!!!")
@@ -85,7 +80,7 @@ impl Graph {
 
     pub fn dfs_traverse<'a>(
         &self, start_index: (usize, usize), dictionary: &'a Dictionary,
-    ) -> (Vec<Vec<(usize, usize)>>, Vec<&'a str>) {
+    ) -> (Vec<Vec<(usize, usize)>>, Box<[&'a str]>) {
         let mut visited = HashSet::new();
         visited.insert(start_index);
 
@@ -101,13 +96,15 @@ impl Graph {
     fn dfs<'a>(
         &self, start_index: (usize, usize), visited: &mut HashSet<(usize, usize)>,
         letter_indices: &mut Vec<(usize, usize)>, dictionary: &'a Dictionary,
-    ) -> (Vec<Vec<(usize, usize)>>, Vec<&'a str>) {
+    ) -> (Vec<Vec<(usize, usize)>>, Box<[&'a str]>) {
         //
         let mut word_paths = Vec::new();
-        let mut swappable_words = Vec::new();
+        let mut swappable_words: Vec<&'a str> = Vec::new();
 
-        let mut word =
-            String::from_iter(letter_indices.iter().map(|&(x, y)| self.characters[x][y]));
+        let mut word = letter_indices
+            .iter()
+            .map(|&(x, y)| self.characters[x][y])
+            .collect::<String>();
         // let unvisited_neighbours: Vec<(usize, usize)> = self
         //     .get_neighbours(start_index)
         //     .iter()
@@ -115,7 +112,7 @@ impl Graph {
         //     .copied()
         //     .collect();
 
-        for neighbour in self.get_neighbours(start_index) {
+        for neighbour in self.get_stored_neighbours(start_index) {
             if visited.contains(neighbour) {
                 continue;
             }
@@ -130,8 +127,9 @@ impl Graph {
             // TODO: Cache invalid prefixes
             if word.len() > 5 {
                 let swaps = 1;
-                let swap_search_space = dictionary
-                    .get_values_from_range((word.len()) as u8..(word.len() + swaps + 1) as u8);
+                let len = word.len();
+                let swap_search_space =
+                    dictionary.get_values_from_range((len as u8)..(len + swaps + 1) as u8);
 
                 // let counts = swap_search_space
                 //     .iter()
@@ -142,9 +140,9 @@ impl Graph {
                 let swapped_words = swap_search_space
                     .into_par_iter()
                     .flatten()
-                    .filter(|&w| find_distance_betwixt_optimised(w, &word) <= swaps as u8)
+                    .filter(|&&w| find_distance_betwixt_optimisedv2(w, &word) <= swaps as u8)
                     .collect::<Vec<_>>();
-                swappable_words.extend(swapped_words.clone());
+                swappable_words.extend(swapped_words);
 
                 // println!(
                 //     "{:?} / {counts:?} = {}%",
@@ -164,16 +162,13 @@ impl Graph {
             }
 
             // Check if it's valid when swaps are enabled
-
-            // println!("{word}");
             if dictionary.is_valid_word(&word) {
                 word_paths.push(letter_indices.clone());
-                // println!("valid {word} {letter_indices:?} {word_paths:?}");
             }
 
             let (valid, swapped) = self.dfs(*neighbour, visited, letter_indices, dictionary);
             word_paths.extend(valid);
-            swappable_words.extend(swapped);
+            swappable_words.extend(swapped.iter());
 
             // Clean up before next neighbour
             letter_indices.pop();
@@ -181,10 +176,10 @@ impl Graph {
             visited.remove(neighbour);
         }
 
-        (word_paths, swappable_words)
+        (word_paths, swappable_words.into_boxed_slice())
     }
 
-    // return the path with the greatest number of swaps remaining
+    // TODO: return the path with the greatest number of swaps remaining
     pub fn find_word_with_swaps(&self, target: &str, max_swaps: i8) -> Option<Vec<(usize, usize)>> {
         // Scenarios:
         // 1. current letter matches target's letter: continue
@@ -219,10 +214,10 @@ impl Graph {
         // Reached end of the word
         if current_indices.len() == target_word.len() {
             if max_swaps >= 0 {
-                let word = current_indices
-                    .iter()
-                    .map(|&(y, x)| self.characters[y][x])
-                    .collect::<String>();
+                // let word = current_indices
+                //     .iter()
+                //     .map(|&(y, x)| self.characters[y][x])
+                //     .collect::<String>();
                 // println!("yes at end: {word}->{target_word} {max_swaps} {current_indices:?}");
                 return Some(current_indices);
             }
@@ -246,7 +241,7 @@ impl Graph {
         // E.g. re + (a | x | j | ...)
         let mut result = Vec::new();
         // TODO:  consider readding filter
-        for neighbour in self.get_neighbours(current_index) {
+        for neighbour in self.get_stored_neighbours(current_index) {
             if visited.contains(neighbour) {
                 continue;
             }
@@ -276,24 +271,27 @@ impl Graph {
         Some(result)
     }
 
-    pub fn evaluate(&self, word_letter_indices: &[(usize, usize)]) -> u8 {
+    pub fn evaluate(&self, word_letter_indices: &[(usize, usize)]) -> (u8, u8) {
         let mut word_multiplier = 1;
         let mut sum = 0;
+        let mut gems = 0;
         for &(y, x) in word_letter_indices.iter() {
             let letter_data = self.data[y][x];
             sum += letter_data.pure_value * letter_data.letter_multiplier;
             word_multiplier = word_multiplier.max(letter_data.word_multiplier);
+            gems += letter_data.has_gem as u8;
         }
         // Long word bonus before or after word_multiplier?
         sum += if word_letter_indices.len() > 5 { 10 } else { 0 };
 
-        sum * word_multiplier
+        (sum * word_multiplier, gems)
     }
 
-    pub fn evaluate_swapped(&self, word: &str, word_letter_indices: &[(usize, usize)]) -> u8 {
+    pub fn evaluate_swapped(&self, word: &str, word_letter_indices: &[(usize, usize)]) -> (u8, u8) {
         let mut word_multiplier = 1;
         let mut sum = 0;
         let mut iter = word.chars();
+        let mut gems = 0;
         for &(y, x) in word_letter_indices.iter() {
             let letter_data = self.data[y][x];
             let current_char = iter.next().unwrap();
@@ -304,11 +302,12 @@ impl Graph {
             };
             sum += pure_value * letter_data.letter_multiplier;
             word_multiplier = word_multiplier.max(letter_data.word_multiplier);
+            gems += letter_data.has_gem as u8;
         }
         // Long word bonus before or after word_multiplier?
         sum += if word_letter_indices.len() > 5 { 10 } else { 0 };
 
-        sum * word_multiplier
+        (sum * word_multiplier, gems)
     }
 
     pub fn trace(&self, word_path: &[(usize, usize)]) {
@@ -422,6 +421,40 @@ pub fn find_distance_betwixt_optimised(word_a: &str, word_b: &str) -> u8 {
     }
 
     matrix[m % 2][n]
+}
+
+#[inline(always)]
+pub fn find_distance_betwixt_optimisedv2(word_a: &str, word_b: &str) -> u8 {
+    let m = word_a.len();
+    let n = word_b.len();
+    let word_a = word_a.as_bytes();
+    let word_b = word_b.as_bytes();
+
+    let mut matrix = vec![0; n + 1];
+
+    for (i, ele) in matrix.iter_mut().enumerate().take(n + 1) {
+        *ele = i as u8;
+    }
+
+    // for i in 0..=n {
+    //     matrix[i] = i as u8;
+    // }
+
+    for i in 1..=m {
+        let mut prev = i as u8;
+        for j in 1..=n {
+            let current = if word_a[i - 1] == word_b[j - 1] {
+                matrix[j - 1]
+            } else {
+                1 + matrix[j - 1].min(matrix[j]).min(prev)
+            };
+            matrix[j - 1] = prev;
+            prev = current;
+        }
+        matrix[n] = prev;
+    }
+
+    matrix[n]
 }
 
 fn get_neighbours(shape_vec: &[[char; 5]; 5], index: (isize, isize)) -> Vec<(usize, usize)> {
