@@ -25,31 +25,7 @@ fn main() -> io::Result<()> {
 
     let dict = dictionary::Dictionary::new(&dictionary_string);
 
-    // let mut counts = dict
-    //     .word_buckets
-    //     .iter()
-    //     .map(|(&k, v)| (k, v.len()))
-    //     .collect::<Vec<(u8, usize)>>();
-    // counts.sort();
-    // println!("lengths: {:?}", counts);
-    //
-
-    let mut b = dict.word_buckets.keys().collect::<Vec<_>>();
-    b.sort();
-    println!("{b:?}");
-
-    let word = "spaghetti";
-    let swaps = 1;
-    println!(
-        "{}: {:?}",
-        word.len(),
-        (word.len() - swaps..word.len() + swaps)
-    );
-    for i in word.len() - swaps..=word.len() + swaps {
-        println!("{i}");
-    }
-
-    let shape = std::fs::read_to_string("assets/shape_temp.txt")
+    let shape = std::fs::read_to_string("assets/shape.txt")
         .expect("The 'shape.txt' file should be openable/readable x(");
 
     let graph = Graph::new(&shape);
@@ -57,16 +33,18 @@ fn main() -> io::Result<()> {
         println!("{i} {:?}", row);
     }
 
+    const SWAPS: u8 = 1;
     let mut words = HashSet::new();
     let mut swapped_words = HashSet::new();
     for y in 0..5 {
         for x in 0..5 {
-            let (valid, swapped) = graph.dfs_traverse((y, x), &dict);
+            let (valid, swapped) = graph.dfs_traverse((y, x), SWAPS, &dict);
             words.extend(valid);
             swapped_words.extend(swapped.iter());
         }
     }
 
+    println!("{:?}", (swapped_words.len(), words.len()));
     // Evaluate and sort words
     let mut scores = words
         .iter()
@@ -85,11 +63,12 @@ fn main() -> io::Result<()> {
     scores.sort_by_key(|&(_, value, _)| value);
     scores.dedup_by_key(|(s, _, _)| s.clone());
 
+    // TODO: get top 5 words of swapped and not swapped
     // TODO: make find_word_with_swaps only return 1 the first path and not multiple paths
-    let swap_scores = swapped_words
+    let mut swap_scores = swapped_words
         .iter()
-        .map(|&s| {
-            if let Some(path) = graph.find_word_with_swaps(s, 1) {
+        .filter_map(|&s| {
+            if let Some(path) = graph.find_word_with_swaps(s, SWAPS as i8) {
                 let trace = graph.trace_swapped(s, &path);
                 Some((
                     s,
@@ -104,26 +83,32 @@ fn main() -> io::Result<()> {
         })
         .collect::<Vec<_>>();
 
-    for (s, ev, t, evt, path) in swap_scores.iter().flatten() {
+    swap_scores.sort_unstable_by_key(|(_, _, _, value, _)| *value);
+    for (s, ev, t, evt, path) in swap_scores {
         println!("{t}{s} {ev:?}->{evt:?} {path:?}\n");
     }
+
+    
+    // let ws = words.iter().map(|v| {
+    // v.iter().map(|(y, x)| graph.characters[*y][*x]).collect::<String>()
+    // }).collect::<Vec<String>>();
+
+    // println!("{swapped_words:?} {:?}", (&ws, ws.len()));
 
     // scores.retain(|pair| pair.1 .0 > 10);
     // for v in &scores[scores.len() - 5..] {
     //     println!("{:?}", (&v.0, v.1));
-    //     graph.trace(v.2);
+    //     graph._trace(v.2);
     // }
 
     // println!("{swapped_words:?}");
     // println!("{scores:?}");
     // print!("\x1b[2J\x1b[1;1H"); // clear console
-    // let s = get_starting_matches(&"spa".to_string(), &dict.words);
-    // println!("{s:?}");
 
     Ok(())
 }
 
-fn get_indices_starting_match(search_term: &String, words_vec: &[&str]) -> Vec<usize> {
+fn _get_indices_starting_match(search_term: &String, words_vec: &[&str]) -> Vec<usize> {
     let mut matches: Vec<usize> = Vec::new();
 
     // Get the index of the first word that starts with the search_term in the vector
@@ -154,7 +139,7 @@ fn get_indices_starting_match(search_term: &String, words_vec: &[&str]) -> Vec<u
     matches
 }
 
-fn get_starting_matches<'a>(search_term: &String, words_vec: &'a [&'a str]) -> Vec<&'a str> {
+fn _get_starting_matches<'a>(search_term: &String, words_vec: &'a [&'a str]) -> Vec<&'a str> {
     let mut matches: Vec<&str> = Vec::new();
 
     // Get the index of the first word that starts with the search_term in the vector

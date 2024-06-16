@@ -16,8 +16,6 @@ impl<'a> Dictionary<'a> {
                 .entry(key)
                 .or_insert_with(Vec::new)
                 .push(*word);
-            // .and_modify(|vector: &mut Vec<&'a str>| vector.push(word))
-            // .or_insert(vec![*word]);
         }
         Self {
             words,

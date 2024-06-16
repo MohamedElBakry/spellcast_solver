@@ -14,7 +14,7 @@ pub struct LetterData {
 pub struct Graph {
     pub characters: [[char; 5]; 5],
     pub data: [[LetterData; 5]; 5],
-    pub adjacency_list: HashMap<(usize, usize), Vec<(usize, usize)>>,
+    pub adjacency_list: HashMap<(usize, usize), Box<[(usize, usize)]>>,
 }
 
 impl Graph {
@@ -65,27 +65,34 @@ impl Graph {
             }
         }
 
+        // Convert to boxed_slices for more compact storage
+        let mut adjacency_boxes = HashMap::new();
+        for (k, v) in adjacency_list.into_iter() {
+            adjacency_boxes.insert(k, v.into_boxed_slice());
+        }
+
         Self {
             characters,
             data,
-            adjacency_list,
+            adjacency_list: adjacency_boxes,
         }
     }
 
-    pub fn get_stored_neighbours(&self, index: (usize, usize)) -> &[(usize, usize)] {
+    fn get_stored_neighbours(&self, index: (usize, usize)) -> &[(usize, usize)] {
         self.adjacency_list
             .get(&index)
             .expect("node should have neighbours!!!")
     }
 
     pub fn dfs_traverse<'a>(
-        &self, start_index: (usize, usize), dictionary: &'a Dictionary,
+        &self, start_index: (usize, usize), swaps: u8, dictionary: &'a Dictionary,
     ) -> (Vec<Vec<(usize, usize)>>, Box<[&'a str]>) {
         let mut visited = HashSet::new();
         visited.insert(start_index);
 
         self.dfs(
             start_index,
+            swaps,
             &mut visited,
             &mut vec![start_index],
             dictionary,
@@ -94,7 +101,7 @@ impl Graph {
 
     // heuristic to explore most valuable first?
     fn dfs<'a>(
-        &self, start_index: (usize, usize), visited: &mut HashSet<(usize, usize)>,
+        &self, start_index: (usize, usize), swaps: u8, visited: &mut HashSet<(usize, usize)>,
         letter_indices: &mut Vec<(usize, usize)>, dictionary: &'a Dictionary,
     ) -> (Vec<Vec<(usize, usize)>>, Box<[&'a str]>) {
         //
@@ -105,14 +112,9 @@ impl Graph {
             .iter()
             .map(|&(x, y)| self.characters[x][y])
             .collect::<String>();
-        // let unvisited_neighbours: Vec<(usize, usize)> = self
-        //     .get_neighbours(start_index)
-        //     .iter()
-        //     .filter(|&index| !visited.contains(index))
-        //     .copied()
-        //     .collect();
 
-        for neighbour in self.get_stored_neighbours(start_index) {
+        let neighbours = self.get_stored_neighbours(start_index);
+        for neighbour in neighbours {
             if visited.contains(neighbour) {
                 continue;
             }
@@ -126,30 +128,16 @@ impl Graph {
             // it to allow for other combinations with neighbouring letters
             // TODO: Cache invalid prefixes
             if word.len() > 5 {
-                let swaps = 1;
-                let len = word.len();
+                let len = word.len() as u8;
                 let swap_search_space =
-                    dictionary.get_values_from_range((len as u8)..(len + swaps + 1) as u8);
-
-                // let counts = swap_search_space
-                //     .iter()
-                //     .map(|v| v.len())
-                //     .reduce(|acc, e| acc + e)
-                //     .unwrap() as f32;
+                    dictionary.get_values_from_range((len)..(len + swaps + 1));
 
                 let swapped_words = swap_search_space
                     .into_par_iter()
                     .flatten()
-                    .filter(|&&w| find_distance_betwixt_optimisedv2(w, &word) <= swaps as u8)
+                    .filter(|&&w| find_distance_betwixt_optimisedv2(w, &word) <= swaps)
                     .collect::<Vec<_>>();
                 swappable_words.extend(swapped_words);
-
-                // println!(
-                //     "{:?} / {counts:?} = {}%",
-                //     swapped_words.len(),
-                //     swapped_words.len() as f32 / counts * 100f32
-                // );
-                // println!("{word}->{swapped_words:?}");
             }
 
             if !dictionary.is_valid_prefix(&word) {
@@ -166,7 +154,7 @@ impl Graph {
                 word_paths.push(letter_indices.clone());
             }
 
-            let (valid, swapped) = self.dfs(*neighbour, visited, letter_indices, dictionary);
+            let (valid, swapped) = self.dfs(*neighbour, swaps, visited, letter_indices, dictionary);
             word_paths.extend(valid);
             swappable_words.extend(swapped.iter());
 
@@ -310,7 +298,7 @@ impl Graph {
         (sum * word_multiplier, gems)
     }
 
-    pub fn trace(&self, word_path: &[(usize, usize)]) {
+    pub fn _trace(&self, word_path: &[(usize, usize)]) {
         for y in 0..self.characters.len() {
             for x in 0..self.characters[y].len() {
                 if word_path.contains(&(y, x)) {
@@ -367,7 +355,7 @@ impl Graph {
     // }
 }
 
-pub fn find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
+pub fn _find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
     let (a_len, b_len) = (word_a.len(), word_b.len());
     let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
 
@@ -393,7 +381,7 @@ pub fn find_distance_betwixt(word_a: &str, word_b: &str) -> u8 {
     matrix[a_len][b_len]
 }
 
-pub fn find_distance_betwixt_optimised(word_a: &str, word_b: &str) -> u8 {
+pub fn _find_distance_betwixt_optimised(word_a: &str, word_b: &str) -> u8 {
     let m = word_a.len();
     let n = word_b.len();
     let word_a = word_a.as_bytes();
