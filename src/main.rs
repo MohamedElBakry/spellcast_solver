@@ -6,16 +6,6 @@ mod dictionary;
 mod shape;
 use crate::shape::Graph;
 
-// TODO:
-// 0. Fuzzy string search ✅
-// 1. Sort by points (partially impemented) ✅
-//  a. Evaluate function
-// - if it's a valid prefix and the fuzzy matcher returns < 3 diff go
-// - return approximate match if swapping a neighbour is possible (i.e, letter has valid neighbours
-// that haven't already been used)
-// 2. OCR
-// 3. Support letter modifiers: DL, TL/ Double Word, Gems for sorting
-// 4. Show top 5 words pathed on shape.txt
 fn main() -> io::Result<()> {
     // Read file shape.txt
     // Traverse and Match to words.txt
@@ -25,7 +15,7 @@ fn main() -> io::Result<()> {
 
     let dict = dictionary::Dictionary::new(&dictionary_string);
 
-    let shape = std::fs::read_to_string("assets/shape.txt")
+    let shape = std::fs::read_to_string("assets/shape_temp.txt")
         .expect("The 'shape.txt' file should be openable/readable x(");
 
     let graph = Graph::new(&shape);
@@ -84,26 +74,10 @@ fn main() -> io::Result<()> {
         .collect::<Vec<_>>();
 
     swap_scores.sort_unstable_by_key(|(_, _, _, value, _)| *value);
-    for (s, ev, t, evt, path) in swap_scores {
-        println!("{t}{s} {ev:?}->{evt:?} {path:?}\n");
+    for (word, ev, highlighted_grid, value, path) in swap_scores {
+        // println!("{highlighted_grid}{word} {ev:?}->{value:?} {path:?}\n");
+        println!("{highlighted_grid}{word} {value:?}\n");
     }
-
-    
-    // let ws = words.iter().map(|v| {
-    // v.iter().map(|(y, x)| graph.characters[*y][*x]).collect::<String>()
-    // }).collect::<Vec<String>>();
-
-    // println!("{swapped_words:?} {:?}", (&ws, ws.len()));
-
-    // scores.retain(|pair| pair.1 .0 > 10);
-    // for v in &scores[scores.len() - 5..] {
-    //     println!("{:?}", (&v.0, v.1));
-    //     graph._trace(v.2);
-    // }
-
-    // println!("{swapped_words:?}");
-    // println!("{scores:?}");
-    // print!("\x1b[2J\x1b[1;1H"); // clear console
 
     Ok(())
 }
