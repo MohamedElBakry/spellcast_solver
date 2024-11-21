@@ -1,6 +1,8 @@
 # Running
 A beta release of the spellcast solver!
 
+Navigate to the releases page [here](https://github.com/MohamedElBakry/spellcast_solver/releases).
+
 Unzip the file, then run the `spellcast_solver.exe` to see it in action.
 
 Modify the `shape_temp.txt` file accordingly, and replace `words.txt` file with your own words list if you wish.
